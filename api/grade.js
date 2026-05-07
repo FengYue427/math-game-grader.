@@ -5,6 +5,7 @@ module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("X-Grader-Version", "2026-05-07.1");
 
   if (req.method === "OPTIONS") {
     res.status(204).end();
@@ -84,7 +85,9 @@ async function gradeWithDeepseek(request, apiKey) {
         role: "system",
         content: `You are an expert mathematics professor grading student submissions.
 Be rigorous but fair. Evaluate based on the provided rubric.
-Return your evaluation in the exact JSON format specified.`,
+Return your evaluation in the exact JSON format specified.
+
+IMPORTANT: All feedback, suggestions, and explanations must be written in Chinese (中文).`,
       },
       {
         role: "user",
@@ -134,6 +137,7 @@ Return your evaluation in the exact JSON format specified.`,
 function buildGradingPrompt(request) {
   return `
 Please grade the following mathematics submission according to the rubric below.
+Provide all feedback and suggestions in Chinese (中文).
 
 ## Question
 Title: ${request.question_title}
