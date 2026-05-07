@@ -42,10 +42,23 @@ module.exports = async (req, res) => {
       gradingRequest = raw ? JSON.parse(raw) : null;
     }
 
-    if (!gradingRequest?.student_reasoning || !gradingRequest?.reference_solution) {
+    const missing = [];
+    const hasReasoning = !!(gradingRequest && typeof gradingRequest.student_reasoning === "string" && gradingRequest.student_reasoning.trim().length > 0);
+    const hasAnswer = !!(gradingRequest && typeof gradingRequest.student_answer === "string" && gradingRequest.student_answer.trim().length > 0);
+    const hasReference = !!(
+      gradingRequest &&
+      typeof gradingRequest.reference_solution === "string" &&
+      gradingRequest.reference_solution.trim().length > 0
+    );
+
+    // Require at least one of reasoning/answer, and always require reference_solution.
+    if (!hasReasoning && !hasAnswer) missing.push("student_reasoning_or_student_answer");
+    if (!hasReference) missing.push("reference_solution");
+
+    if (missing.length > 0) {
       res.status(400).json({
         error: "Missing required fields",
-        required: ["student_reasoning", "reference_solution"],
+        missing,
       });
       return;
     }
