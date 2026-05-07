@@ -23,10 +23,30 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const gradingRequest = req.body;
+    let gradingRequest = req.body;
+
+    // Some runtimes may pass body as a raw string or not parse JSON automatically.
+    if (typeof gradingRequest === "string") {
+      gradingRequest = JSON.parse(gradingRequest);
+    }
+
+    if (!gradingRequest || typeof gradingRequest !== "object") {
+      // Fallback: manually read raw body
+      const raw = await new Promise((resolve, reject) => {
+        let data = "";
+        req.on("data", chunk => (data += chunk));
+        req.on("end", () => resolve(data));
+        req.on("error", reject);
+      });
+
+      gradingRequest = raw ? JSON.parse(raw) : null;
+    }
 
     if (!gradingRequest?.student_reasoning || !gradingRequest?.reference_solution) {
-      res.status(400).json({ error: "Missing required fields" });
+      res.status(400).json({
+        error: "Missing required fields",
+        required: ["student_reasoning", "reference_solution"],
+      });
       return;
     }
 
