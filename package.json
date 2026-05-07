@@ -2,10 +2,7 @@
   "name": "math-game-grader-proxy",
   "version": "1.0.0",
   "description": "Vercel Serverless proxy for Deepseek AI grading",
-  "main": "api/grade.ts",
+  "main": "api/grade.js",
   "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.3.3",
-    "@types/node": "^20.11.30"
-  }
+  "devDependencies": {}
 }

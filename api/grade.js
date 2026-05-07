@@ -1,6 +1,5 @@
-import type { IncomingMessage, ServerResponse } from "http";
-
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+// Vercel Serverless Function - CommonJS format
+module.exports = async (req, res) => {
   // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -8,55 +7,41 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   res.setHeader("Content-Type", "application/json");
 
   if (req.method === "OPTIONS") {
-    res.statusCode = 204;
-    res.end();
+    res.status(204).end();
     return;
   }
 
   if (req.method !== "POST") {
-    res.statusCode = 405;
-    res.end(JSON.stringify({ error: "Method not allowed" }));
+    res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: "Server misconfigured: missing DEEPSEEK_API_KEY" }));
+    res.status(500).json({ error: "Server misconfigured: missing DEEPSEEK_API_KEY" });
     return;
   }
 
   try {
-    // Read request body
-    const body = await new Promise<string>((resolve, reject) => {
-      let data = "";
-      req.on("data", chunk => data += chunk);
-      req.on("end", () => resolve(data));
-      req.on("error", reject);
-    });
-
-    const gradingRequest = JSON.parse(body);
+    const gradingRequest = req.body;
 
     if (!gradingRequest?.student_reasoning || !gradingRequest?.reference_solution) {
-      res.statusCode = 400;
-      res.end(JSON.stringify({ error: "Missing required fields" }));
+      res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
     const result = await gradeWithDeepseek(gradingRequest, apiKey);
-    res.statusCode = 200;
-    res.end(JSON.stringify(result));
+    res.status(200).json(result);
   } catch (error) {
     console.error("Grading error:", error);
-    res.statusCode = 500;
-    res.end(JSON.stringify({ 
+    res.status(500).json({ 
       error: "Internal server error", 
-      message: error instanceof Error ? error.message : "Unknown error" 
-    }));
+      message: error.message || "Unknown error"
+    });
   }
-}
+};
 
-async function gradeWithDeepseek(request: any, apiKey: string) {
+async function gradeWithDeepseek(request, apiKey) {
   const prompt = buildGradingPrompt(request);
 
   const deepseekRequest = {
@@ -92,7 +77,7 @@ Return your evaluation in the exact JSON format specified.`,
     throw new Error(`Deepseek API error: ${response.status} ${response.statusText}${text ? ` - ${text}` : ""}`);
   }
 
-  const data: any = await response.json();
+  const data = await response.json();
   const content = data.choices?.[0]?.message?.content;
 
   if (!content) {
@@ -113,7 +98,7 @@ Return your evaluation in the exact JSON format specified.`,
   }
 }
 
-function buildGradingPrompt(request: any): string {
+function buildGradingPrompt(request) {
   return `
 Please grade the following mathematics submission according to the rubric below.
 
