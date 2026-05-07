@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "Vercel Serverless proxy for Deepseek AI grading",
   "main": "api/grade.ts",
-  "scripts": {
-    "build": "tsc --noEmit"
-  },
   "dependencies": {},
   "devDependencies": {
     "typescript": "^5.3.3",
