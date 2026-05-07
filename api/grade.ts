@@ -1,101 +1,72 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "http";
 
-// Grading request from client
-interface GradingRequest {
-  question_id: string;
-  question_title: string;
-  question_description: string;
-  student_reasoning: string;
-  student_answer: string;
-  reference_solution: string;
-  rubric: {
-    reasoning_completeness: number;
-    mathematical_rigor: number;
-    answer_correctness: number;
-    clarity: number;
-    depth: number;
-  };
-  pass_threshold: number;
-}
-
-interface DeepseekRequest {
-  model: string;
-  messages: Array<{
-    role: "system" | "user";
-    content: string;
-  }>;
-  temperature: number;
-  max_tokens: number;
-  response_format: { type: "json_object" };
-}
-
-interface GradingResult {
-  total_score: number;
-  passed: boolean;
-  breakdown: {
-    reasoning_completeness: { score: number; feedback: string };
-    mathematical_rigor: { score: number; feedback: string };
-    answer_correctness: { score: number; feedback: string };
-    clarity: { score: number; feedback: string };
-    depth: { score: number; feedback: string };
-  };
-  overall_feedback: string;
-  suggestions: string[];
-}
-
-function setCors(res: VercelResponse): void {
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setCors(res);
+  res.setHeader("Content-Type", "application/json");
 
   if (req.method === "OPTIONS") {
-    res.status(204).end();
+    res.statusCode = 204;
+    res.end();
     return;
   }
 
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: "Method not allowed" }));
     return;
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "Server misconfigured: missing DEEPSEEK_API_KEY" });
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: "Server misconfigured: missing DEEPSEEK_API_KEY" }));
     return;
   }
 
   try {
-    const gradingRequest = req.body as GradingRequest;
+    // Read request body
+    const body = await new Promise<string>((resolve, reject) => {
+      let data = "";
+      req.on("data", chunk => data += chunk);
+      req.on("end", () => resolve(data));
+      req.on("error", reject);
+    });
+
+    const gradingRequest = JSON.parse(body);
 
     if (!gradingRequest?.student_reasoning || !gradingRequest?.reference_solution) {
-      res.status(400).json({ error: "Missing required fields" });
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "Missing required fields" }));
       return;
     }
 
     const result = await gradeWithDeepseek(gradingRequest, apiKey);
-    res.status(200).json(result);
+    res.statusCode = 200;
+    res.end(JSON.stringify(result));
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("Grading error:", error);
-    res
-      .status(500)
-      .json({ error: "Internal server error", message: error instanceof Error ? error.message : "Unknown error" });
+    res.statusCode = 500;
+    res.end(JSON.stringify({ 
+      error: "Internal server error", 
+      message: error instanceof Error ? error.message : "Unknown error" 
+    }));
   }
 }
 
-async function gradeWithDeepseek(request: GradingRequest, apiKey: string): Promise<GradingResult> {
+async function gradeWithDeepseek(request: any, apiKey: string) {
   const prompt = buildGradingPrompt(request);
 
-  const deepseekRequest: DeepseekRequest = {
+  const deepseekRequest = {
     model: "deepseek-chat",
     messages: [
       {
         role: "system",
-        content: `You are an expert mathematics professor grading student submissions.\nBe rigorous but fair. Evaluate based on the provided rubric.\nReturn your evaluation in the exact JSON format specified.`,
+        content: `You are an expert mathematics professor grading student submissions.
+Be rigorous but fair. Evaluate based on the provided rubric.
+Return your evaluation in the exact JSON format specified.`,
       },
       {
         role: "user",
@@ -121,15 +92,15 @@ async function gradeWithDeepseek(request: GradingRequest, apiKey: string): Promi
     throw new Error(`Deepseek API error: ${response.status} ${response.statusText}${text ? ` - ${text}` : ""}`);
   }
 
-  const data = (await response.json()) as any;
-  const content: string | undefined = data.choices?.[0]?.message?.content;
+  const data: any = await response.json();
+  const content = data.choices?.[0]?.message?.content;
 
   if (!content) {
     throw new Error("Empty response from Deepseek API");
   }
 
   try {
-    const parsed = JSON.parse(content) as GradingResult;
+    const parsed = JSON.parse(content);
 
     if (typeof parsed.total_score !== "number" || typeof parsed.passed !== "boolean" || !parsed.breakdown) {
       throw new Error("Invalid response structure from AI");
@@ -137,13 +108,12 @@ async function gradeWithDeepseek(request: GradingRequest, apiKey: string): Promi
 
     return parsed;
   } catch (_e) {
-    // eslint-disable-next-line no-console
     console.error("Failed to parse AI response:", content);
     throw new Error("Failed to parse grading result");
   }
 }
 
-function buildGradingPrompt(request: GradingRequest): string {
+function buildGradingPrompt(request: any): string {
   return `
 Please grade the following mathematics submission according to the rubric below.
 
