@@ -1,0 +1,14 @@
+name = "math-game-grader"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+# 从 https://dash.cloudflare.com 右侧 sidebar 获取你的 account_id
+account_id = "42a554cb8072bdd6729c6d0652ac1458"
+
+# Environment variables (set via wrangler secret put)
+# DEEPSEEK_API_KEY - Your Deepseek API key
+
+[env.production]
+name = "math-game-grader"
+
+[env.staging]
+name = "math-game-grader-staging"
