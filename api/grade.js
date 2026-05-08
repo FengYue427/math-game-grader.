@@ -176,9 +176,12 @@ Return ONLY a JSON object with this exact structure:
   "suggestions": ["<specific improvement suggestion 1>", "<suggestion 2>", "<suggestion 3>"]
 }
 
-IMPORTANT:
-1. Return ONLY the JSON object, no markdown formatting
-2. Be rigorous - a submission with significant errors should not pass
-3. Provide constructive, specific feedback in each category
+IMPORTANT GRADING RULES:
+1. If the submission is essentially blank (no reasoning and incorrect answer), total_score must be 0-10, not higher
+2. If there is no reasoning process, reasoning_completeness and mathematical_rigor must be 0
+3. If the final answer is incorrect, answer_correctness must be 0 or very low (0-20% of its weight)
+4. A submission with missing reasoning OR incorrect answer should NOT pass (passed: false)
+5. Be EXTREMELY rigorous - partial credit should be minimal
+6. Return ONLY the JSON object, no markdown formatting
 `;
 }
